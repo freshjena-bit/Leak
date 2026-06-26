@@ -1,18 +1,15 @@
 import "./globals.css";
+import type { Metadata } from "next";
 
-export const metadata={
-title:"File Share",
-description:"Share Download"
+export const metadata: Metadata = {
+  title: "File Share",
+  description: "Legal File Repository"
 };
 
 export default function RootLayout({
-
-children
-
+  children
 }:{
-
-children:React.ReactNode
-
+  children:React.ReactNode;
 }){
 
 return(
@@ -27,6 +24,6 @@ return(
 
 </html>
 
-)
+);
 
 }
