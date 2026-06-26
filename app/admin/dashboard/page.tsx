@@ -1,137 +1,146 @@
 import { adminSupabase } from "@/lib/server";
 import Link from "next/link";
+import Image from "next/image";
 
-export default async function Dashboard() {
-  const { data: files } = await adminSupabase
+const LIMIT = 15;
+
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+    page?: string;
+  }>;
+}) {
+  const params = await searchParams;
+
+  const keyword = params.q ?? "";
+
+  const page = Number(params.page ?? "1");
+
+  const from = (page - 1) * LIMIT;
+
+  const to = from + LIMIT - 1;
+
+  let query = adminSupabase
     .from("files")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("*", {
+      count: "exact",
+    })
+    .order("created_at", {
+      ascending: false,
+    });
 
-  const total = files?.length ?? 0;
-  const pending = files?.filter(f => !f.approved).length ?? 0;
-  const approved = files?.filter(f => f.approved).length ?? 0;
+  if (keyword) {
+    query = query.or(
+      `title.ilike.%${keyword}%,uploader.ilike.%${keyword}%`
+    );
+  }
+
+  const { data, count } = await query.range(from, to);
+
+  const total = count ?? 0;
+
+  const totalPage = Math.max(
+    1,
+    Math.ceil(total / LIMIT)
+  );
+
+  const pending =
+    data?.filter((x) => !x.approved).length ?? 0;
+
+  const approved =
+    data?.filter((x) => x.approved).length ?? 0;
 
   return (
     <main className="max-w-7xl mx-auto p-6">
 
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between mb-8">
+
         <h1 className="text-3xl font-bold">
-          Dashboard Admin
+          Dashboard
         </h1>
 
-        <form action="/api/admin/logout" method="POST">
+        <form
+          action="/api/admin/logout"
+          method="POST"
+        >
           <button className="bg-red-600 text-white px-4 py-2 rounded-lg">
             Logout
           </button>
         </form>
+
       </div>
+
+      <form className="mb-8">
+
+        <input
+          name="q"
+          defaultValue={keyword}
+          placeholder="Cari..."
+          className="border rounded-lg p-3 w-full"
+        />
+
+      </form>
 
       <div className="grid md:grid-cols-3 gap-5 mb-8">
 
         <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-gray-500">Total File</h2>
-          <p className="text-3xl font-bold">{total}</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-gray-500">Pending</h2>
-          <p className="text-3xl font-bold text-orange-500">
-            {pending}
+          <h2>Total File</h2>
+          <p className="text-3xl font-bold">
+            {total}
           </p>
         </div>
 
         <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-gray-500">Approved</h2>
+          <h2>Approved</h2>
           <p className="text-3xl font-bold text-green-600">
             {approved}
           </p>
         </div>
 
+        <div className="bg-white rounded-xl shadow p-5">
+          <h2>Pending</h2>
+          <p className="text-3xl font-bold text-orange-600">
+            {pending}
+          </p>
+        </div>
+
       </div>
 
-      <div className="bg-white rounded-xl shadow overflow-auto">
+      <div className="grid md:grid-cols-2 gap-5">
 
-        <table className="w-full">
+        {data?.map((file) => (
 
-          <thead className="bg-gray-100">
+          <div
+            key={file.id}
+            className="bg-white rounded-xl shadow overflow-hidden"
+          >
 
-            <tr>
+            <Image
+              src={file.preview}
+              width={500}
+              height={300}
+              alt={file.title}
+              className="w-full h-48 object-cover"
+            />
 
-              <th className="p-3 text-left">Judul</th>
+            <div className="p-5">
 
-              <th className="p-3 text-left">Uploader</th>
+              <h2 className="font-bold">
+                {file.title}
+              </h2>
 
-              <th className="p-3 text-left">Status</th>
+              <p className="text-gray-500">
+                {file.uploader}
+              </p>
 
-              <th className="p-3 text-left">
-                Aksi
-              </th>
+              <div className="flex gap-2 mt-5">
 
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {files?.map(file => (
-
-              <tr
-                key={file.id}
-                className="border-t"
-              >
-
-                <td className="p-3">
-
-                  {file.title}
-
-                </td>
-
-                <td className="p-3">
-
-                  {file.uploader}
-
-                </td>
-
-                <td className="p-3">
-
-                  {file.approved
-                    ? "Approved"
-                    : "Pending"}
-
-                </td>
-
-                <td className="p-3 flex gap-2">
-
-                  {!file.approved && (
-
-                    <form
-                      action="/api/admin/approve"
-                      method="POST"
-                    >
-
-                      <input
-                        type="hidden"
-                        name="id"
-                        value={file.id}
-                      />
-
-                      <button className="bg-green-600 text-white px-3 py-1 rounded">
-                        Approve
-                      </button>
-
-                    </form>
-
-                  )}
-
-                  <Link
-                    href={`/admin/edit/${file.id}`}
-                    className="bg-blue-600 text-white px-3 py-1 rounded"
-                  >
-                    Edit
-                  </Link>
+                {!file.approved && (
 
                   <form
-                    action="/api/admin/delete"
+                    action="/api/admin/approve"
                     method="POST"
                   >
 
@@ -141,24 +150,74 @@ export default async function Dashboard() {
                       value={file.id}
                     />
 
-                    <button className="bg-red-600 text-white px-3 py-1 rounded">
-                      Delete
+                    <button className="bg-green-600 text-white px-4 py-2 rounded">
+                      Approve
                     </button>
 
                   </form>
 
-                </td>
+                )}
 
-              </tr>
+                <Link
+                  href={`/admin/edit/${file.id}`}
+                  className="bg-blue-600 text-white px-4 py-2 rounded"
+                >
+                  Edit
+                </Link>
 
-            ))}
+                <form
+                  action="/api/admin/delete"
+                  method="POST"
+                >
 
-          </tbody>
+                  <input
+                    type="hidden"
+                    name="id"
+                    value={file.id}
+                  />
 
-        </table>
+                  <button className="bg-red-600 text-white px-4 py-2 rounded">
+                    Delete
+                  </button>
+
+                </form>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        ))}
+
+      </div>
+
+      <div className="mt-10">
+
+        <Link
+          href={`/?page=${Math.max(
+            page - 1,
+            1
+          )}`}
+        >
+          Prev
+        </Link>
+
+        <span className="mx-4">
+          {page}/{totalPage}
+        </span>
+
+        <Link
+          href={`/?page=${Math.min(
+            page + 1,
+            totalPage
+          )}`}
+        >
+          Next
+        </Link>
 
       </div>
 
     </main>
   );
-                }
+            }
