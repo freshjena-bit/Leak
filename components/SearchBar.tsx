@@ -1,34 +1,49 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export default function SearchBar() {
   const router = useRouter();
-  const [q, setQ] = useState("");
+  const params = useSearchParams();
 
-  function submit(e: React.FormEvent) {
+  const [keyword, setKeyword] = useState(
+    params.get("q") ?? ""
+  );
+
+  function search(e: React.FormEvent) {
     e.preventDefault();
-    router.push("/?q=" + encodeURIComponent(q));
+
+    const url = new URLSearchParams();
+
+    if (keyword.trim()) {
+      url.set("q", keyword.trim());
+    }
+
+    url.set("page", "1");
+
+    router.push("/?" + url.toString());
   }
 
   return (
     <form
-      onSubmit={submit}
-      className="flex gap-2 my-6"
+      onSubmit={search}
+      className="flex gap-3 mb-8"
     >
+
       <input
-        className="border rounded-lg px-4 py-3 w-full"
-        placeholder="Cari file..."
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
+        className="border rounded-lg p-3 flex-1"
+        placeholder="Cari File..."
+        value={keyword}
+        onChange={(e) => setKeyword(e.target.value)}
       />
 
       <button
-        className="bg-blue-600 text-white px-5 rounded-lg"
+        className="bg-blue-600 text-white px-6 rounded-lg"
       >
         Cari
       </button>
+
     </form>
   );
 }
