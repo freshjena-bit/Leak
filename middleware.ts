@@ -1,18 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+import { verifyAdminToken } from "@/lib/auth";
 
 export function middleware(req: NextRequest) {
-  const token = req.cookies.get("admin-token")?.value;
+  const pathname = req.nextUrl.pathname;
 
-  if (req.nextUrl.pathname.startsWith("/admin/dashboard")) {
+  if (
+    pathname.startsWith("/admin") &&
+    pathname !== "/admin/login"
+  ) {
+    const token = req.cookies.get("admin-token")?.value;
+
     if (!token) {
-      return NextResponse.redirect(new URL("/admin/login", req.url));
+      return NextResponse.redirect(
+        new URL("/admin/login", req.url)
+      );
     }
 
-    try {
-      jwt.verify(token, process.env.JWT_SECRET!);
-    } catch {
-      return NextResponse.redirect(new URL("/admin/login", req.url));
+    const valid = verifyAdminToken(token);
+
+    if (!valid) {
+      return NextResponse.redirect(
+        new URL("/admin/login", req.url)
+      );
     }
   }
 
@@ -20,5 +29,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/dashboard/:path*"]
+  matcher: ["/admin/:path*"],
 };
